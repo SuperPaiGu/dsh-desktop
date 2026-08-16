@@ -1,0 +1,7 @@
+# Pack-time ignore for the desktop subtree (replaces .gitignore during
+# pack/publish). dist/ is deliberately NOT listed so the root package's
+# files whitelist ("desktop/dist/*.exe") can ship the portable exe, while
+# desktop/.gitignore keeps the full build output out of git.
+node_modules/
+logs/
+*.log

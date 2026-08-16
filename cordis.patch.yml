@@ -1,0 +1,6 @@
+# dsh-desktop bundle layer: one host row registering the human-facing
+# /desktop command. Installed plugins add this layer to the profile's bundle
+# stack via `dsh plugin add`.
+- insert:
+    - id: desktop
+      name: dsh-desktop

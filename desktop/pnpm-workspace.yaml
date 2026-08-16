@@ -1,0 +1,13 @@
+packages:
+  - .
+# pnpm 11 reads allowBuilds; pnpm <=10 reads onlyBuiltDependencies. Keep both.
+allowBuilds:
+  electron: true
+  electron-builder: true
+  electron-winstaller: true
+onlyBuiltDependencies:
+  - electron
+  - electron-builder
+  - electron-winstaller
+overrides:
+  "@electron/get": 5.1.0

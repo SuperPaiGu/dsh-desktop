@@ -1,0 +1,50 @@
+{
+  "name": "dsh-desktop",
+  "version": "0.1.0",
+  "description": "DSH desktop shell: wraps the DeepSeek Harness Web GUI (http://127.0.0.1:3080) in a native double-clickable window",
+  "author": "dsh-desktop",
+  "license": "MIT",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "com.deepseek.dsh.desktop",
+    "productName": "DSH Desktop",
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "loading.html",
+      "loading.js",
+      "config.json",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "DSH-Desktop-${version}-${arch}.exe"
+    },
+    "portable": {
+      "artifactName": "DSH-Desktop-${version}-${arch}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "dshRepo": "",
+  "port": 3080,
+  "dshHome": "",
+  "startMode": "auto",
+  "startupTimeoutMs": 120000,
+  "killAttachedOnExit": false,
+  "window": {
+    "width": 1440,
+    "height": 900
+  }
+}

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self'" />
+  <title>DSH 桌面版</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #0e1117;
+      color: #e6e9ef;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card { text-align: center; width: 640px; max-width: 92vw; }
+    .logo {
+      width: 84px; height: 84px; margin: 0 auto 18px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #4d6bfe, #2b3f9e);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 26px; letter-spacing: 1px; color: #fff;
+      box-shadow: 0 8px 32px rgba(77, 107, 254, .35);
+    }
+    h1 { font-size: 20px; margin: 0 0 6px; font-weight: 600; }
+    .subtitle { color: #8b93a7; font-size: 13px; }
+    .spinner {
+      width: 34px; height: 34px; margin: 22px auto 12px;
+      border: 3px solid rgba(139, 147, 167, .25);
+      border-top-color: #4d6bfe;
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #status { font-size: 14px; min-height: 20px; }
+    #detail { color: #8b93a7; font-size: 12px; margin-top: 6px; word-break: break-all; }
+    #hint { color: #6b7387; font-size: 12px; margin-top: 8px; display: none; }
+    #error { color: #f87171; font-size: 13px; margin-top: 10px; min-height: 18px; }
+    #actions { margin-top: 18px; display: flex; gap: 10px; justify-content: center; }
+    button {
+      border: 1px solid #2c3345; background: #171c26; color: #e6e9ef;
+      border-radius: 8px; padding: 8px 20px; font-size: 13px; cursor: pointer;
+    }
+    button:hover { background: #202838; }
+    button.primary { background: #4d6bfe; border-color: #4d6bfe; }
+    button.primary:hover { background: #5f7bff; }
+    #log-box {
+      margin: 26px auto 0; max-width: 640px; max-height: 160px; overflow-y: auto;
+      text-align: left; background: #0a0d12; border: 1px solid #1d2430;
+      border-radius: 8px; padding: 10px 12px; font-family: Consolas, monospace;
+      font-size: 11px; line-height: 1.6; color: #7d8698; white-space: pre-wrap;
+      word-break: break-all; display: none;
+    }
+    #log-box.open { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">DSH</div>
+    <h1>DeepSeek Harness 桌面版</h1>
+    <div class="subtitle">DeepSeek Harness Desktop</div>
+    <div class="spinner" id="spinner"></div>
+    <div id="status">正在启动…</div>
+    <div id="detail"></div>
+    <div id="hint">首次冷启动可能需要约一分钟，请稍候…</div>
+    <div id="error"></div>
+    <div id="actions" hidden>
+      <button class="primary" id="retry-btn">重试</button>
+      <button id="spawn-btn">启动本地服务</button>
+      <button id="quit-btn">退出</button>
+    </div>
+    <div id="log-box"><div id="log-lines"></div></div>
+  </div>
+  <script src="./loading.js"></script>
+</body>
+</html>
