@@ -294,12 +294,19 @@ function spawnServer(launcher) {
     // need cmd /c on Windows.
     args = ['web']
     if (/\.cmd$/i.test(launcher.cmd)) {
+      // Pass the .cmd path as its own argv token, NOT pre-quoted: on Windows
+      // libuv re-escapes embedded quotes, turning `"C:\...\dsh.cmd"` into a
+      // literal `\"...\"` token that cmd /c cannot resolve. libuv quotes
+      // spaced arguments itself, so an unquoted path is safe for all cases.
       command = 'cmd'
-      args = ['/c', `"${launcher.cmd}"`, ...args]
+      args = ['/c', launcher.cmd, ...args]
     } else {
       command = launcher.cmd
     }
   }
+  // The desktop window IS the UI, so never let the spawned `dsh web` also open
+  // the default browser (it does unless --no-open is passed).
+  args.push('--no-open')
   if (cfg.port !== DEFAULT_PORT) args.push('--port', String(cfg.port))
   const env = { ...process.env, DSH_HOME: cfg.dshHome }
   delete env.ELECTRON_RUN_AS_NODE
@@ -482,17 +489,14 @@ function gracefulStopServer(then) {
     then()
   }
   child.once('exit', (code) => finish(code))
-  logLine('stopping dsh web (SIGTERM)…')
-  try { child.kill('SIGTERM') } catch {}
-  setTimeout(() => {
-    if (!settled) {
-      logLine('graceful stop timed out — force killing process tree')
-      try {
-        spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true })
-      } catch {}
-      setTimeout(() => finish('forced'), 1000)
-    }
-  }, 5000)
+  // The child may be a `cmd /c` wrapper (installed-CLI path) whose real server
+  // is a grandchild; killing the wrapper alone would orphan the server and
+  // leave the port bound. Kill the whole tree so the service always dies.
+  logLine('stopping dsh web (process tree)…')
+  try {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true })
+  } catch {}
+  setTimeout(() => finish('forced'), 3000)
 }
 
 let serverStopped = true
