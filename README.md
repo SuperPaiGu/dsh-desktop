@@ -35,7 +35,13 @@
 ### 你需要先有
 
 - Windows 10 或 11
-- 电脑上已经能用的 DSH（终端里 `dsh` 这个命令能跑）
+- **`dsh` 命令能用**（终端里输入 `dsh` 能跑起来）。如果还没装，用 npm 全局安装即可：
+
+  ```sh
+  npm install -g @deepseek-ai/dsh
+  ```
+
+  装完在终端运行 `dsh --version`，能看到版本号就说明成功了（需要 Node.js ≥ 22，可先用 `node -v` 确认）。
 - pnpm（DSH 能用的话，pnpm 一般已经装好了）
 
 ### 三步装好
