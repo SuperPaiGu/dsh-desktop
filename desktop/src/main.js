@@ -490,13 +490,18 @@ function gracefulStopServer(then) {
   }
   child.once('exit', (code) => finish(code))
   // The child may be a `cmd /c` wrapper (installed-CLI path) whose real server
-  // is a grandchild; killing the wrapper alone would orphan the server and
-  // leave the port bound. Kill the whole tree so the service always dies.
-  logLine('stopping dsh web (process tree)…')
+  // is a grandchild; killing the wrapper alone can orphan the server and leave
+  // the port bound. Kill the listener by port first (authoritative, independent
+  // of the wrapper chain), then the wrapper tree so no cmd shell survives.
+  logLine('stopping dsh web (kill listener by port, then wrapper tree)…')
+  const listenerPid = findListenerPid(cfg.port)
+  if (listenerPid !== null && (!child || listenerPid !== child.pid)) {
+    try { killProcessTree(listenerPid) } catch {}
+  }
   try {
     spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true })
   } catch {}
-  setTimeout(() => finish('forced'), 3000)
+  setTimeout(() => finish('forced'), 4000)
 }
 
 let serverStopped = true
