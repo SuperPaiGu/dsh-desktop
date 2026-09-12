@@ -2,9 +2,13 @@
   "dshRepo": "",
   "port": 3080,
   "dshHome": "",
+  "launcher": "auto",
   "startMode": "auto",
   "startupTimeoutMs": 120000,
   "killAttachedOnExit": false,
+  "auxPort": 3081,
+  "auxHome": "",
+  "mainServiceLog": "",
   "window": {
     "width": 1440,
     "height": 900

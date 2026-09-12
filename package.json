@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
-  "version": "0.1.2",
-  "description": "DSH desktop-window bundle: registers the /desktop command that opens DeepSeek Harness in a native desktop window (identical to the web UI)",
+  "version": "0.1.9",
+  "description": "DSH desktop-window bundle: registers the /desktop command that opens DeepSeek Harness in a native desktop window (identical to the web UI). The window carries a floating control for one independent auxiliary dsh instance started from the installed CLI.",
   "type": "module",
   "main": "index.js",
   "bin": {

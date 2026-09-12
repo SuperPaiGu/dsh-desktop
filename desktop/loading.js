@@ -21,7 +21,6 @@ function render(state) {
     `地址 ${state.url || '—'}`,
     `端口 ${state.port || '—'}`,
     state.mode ? MODE_TEXT[state.mode] || state.mode : '',
-    state.repo ? `仓库 ${state.repo}` : '',
   ].filter(Boolean).join(' · ')
 
   const down = state.phase === 'server-down'

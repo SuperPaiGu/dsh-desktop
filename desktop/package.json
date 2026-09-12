@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
-  "version": "0.1.0",
-  "description": "DSH desktop shell: wraps the DeepSeek Harness Web GUI (http://127.0.0.1:3080) in a native double-clickable window",
+  "version": "0.1.9",
+  "description": "DSH desktop shell: wraps the DeepSeek Harness Web GUI in a native double-clickable window, with a floating control for one independent auxiliary dsh instance",
   "author": "dsh-desktop",
   "license": "MIT",
   "private": true,
@@ -9,6 +9,7 @@
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke",
+    "test": "node test/aux-spec.cjs",
     "dist": "electron-builder --win portable --x64"
   },
   "build": {

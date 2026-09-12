@@ -25,13 +25,37 @@ contextBridge.exposeInMainWorld('dshDesktop', {
 })
 
 // -------------------------------------------------------------- aux control
-// A second, independent dsh instance lives on its own port. This floating
-// control starts/opens/stops it from inside the desktop window, so the main
-// service on this window's port keeps running untouched.
+// A second, independent dsh instance on its own port, always started from the
+// installed CLI so upgrading or rebuilding a deepseek-harness checkout cannot
+// move it. This floating control starts/opens/stops it from inside the desktop
+// window, so the main service on this window's port keeps running untouched.
 const AUX_ROOT_ID = '__dsh_aux_control__'
 
 function stylize(el, props) {
   for (const key of Object.keys(props)) el.style.setProperty(key, props[key])
+}
+
+function makeButton(label) {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.textContent = label
+  stylize(button, {
+    border: '1px solid rgba(120, 130, 150, 0.4)',
+    background: '#1b2130',
+    color: '#d7dbe4',
+    'border-radius': '7px',
+    padding: '5px 10px',
+    cursor: 'pointer',
+    flex: '1 1 auto',
+    font: 'inherit',
+  })
+  return button
+}
+
+function setEnabled(button, enabled) {
+  button.disabled = !enabled
+  button.style.setProperty('opacity', enabled ? '1' : '0.4')
+  button.style.setProperty('cursor', enabled ? 'pointer' : 'default')
 }
 
 function mountAuxControl() {
@@ -56,7 +80,7 @@ function mountAuxControl() {
     position: 'absolute',
     right: '0',
     bottom: '38px',
-    'min-width': '230px',
+    'min-width': '260px',
     background: 'rgba(17, 21, 28, 0.97)',
     border: '1px solid rgba(120, 130, 150, 0.35)',
     'border-radius': '10px',
@@ -67,43 +91,43 @@ function mountAuxControl() {
   })
 
   const title = document.createElement('div')
-  stylize(title, { margin: '0 0 6px', 'font-weight': '600' })
   title.textContent = '辅助端'
+  title.title = '从已安装的 dsh（npm）启动，重打包桌面端 / 改源码都不影响它'
+  stylize(title, { margin: '0 0 4px', 'font-weight': '600' })
 
   const statusLine = document.createElement('div')
-  stylize(statusLine, { margin: '0 0 4px' })
+  stylize(statusLine, { margin: '0 0 2px' })
 
   const homeLine = document.createElement('div')
   stylize(homeLine, {
     color: '#8b93a7',
     'font-size': '11px',
     'word-break': 'break-all',
-    margin: '0 0 10px',
+  })
+
+  const messageLine = document.createElement('div')
+  stylize(messageLine, {
+    color: '#f0a3a3',
+    'font-size': '11px',
+    margin: '4px 0 0',
+    display: 'none',
   })
 
   const row = document.createElement('div')
-  stylize(row, { display: 'flex', gap: '6px' })
-
-  function makeButton(label) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.textContent = label
-    stylize(button, {
-      border: '1px solid rgba(120, 130, 150, 0.4)',
-      background: '#1b2130',
-      color: '#d7dbe4',
-      'border-radius': '7px',
-      padding: '5px 10px',
-      cursor: 'pointer',
-      flex: '1 1 auto',
-      font: 'inherit',
-    })
-    return button
-  }
+  stylize(row, { display: 'flex', gap: '6px', margin: '7px 0 0' })
 
   const startButton = makeButton('启动')
   const openButton = makeButton('打开')
   const stopButton = makeButton('停止')
+  row.appendChild(startButton)
+  row.appendChild(openButton)
+  row.appendChild(stopButton)
+
+  panel.appendChild(title)
+  panel.appendChild(statusLine)
+  panel.appendChild(homeLine)
+  panel.appendChild(row)
+  panel.appendChild(messageLine)
 
   const toggle = document.createElement('button')
   toggle.type = 'button'
@@ -120,19 +144,12 @@ function mountAuxControl() {
     'box-shadow': '0 4px 14px rgba(0, 0, 0, 0.35)',
   })
 
-  function setEnabled(button, enabled) {
-    button.disabled = !enabled
-    button.style.setProperty('opacity', enabled ? '1' : '0.4')
-    button.style.setProperty('cursor', enabled ? 'pointer' : 'default')
+  function showMessage(text) {
+    messageLine.textContent = text || ''
+    messageLine.style.setProperty('display', text ? 'block' : 'none')
   }
 
-  async function refresh() {
-    let state = null
-    try {
-      state = await ipcRenderer.invoke('dsh:aux-status')
-    } catch {
-      state = null
-    }
+  function apply(state) {
     if (!state) {
       statusLine.textContent = '状态未知'
       setEnabled(startButton, false)
@@ -149,22 +166,46 @@ function mountAuxControl() {
     setEnabled(stopButton, state.running)
   }
 
-  function showPanel(show) {
-    panel.style.setProperty('display', show ? 'block' : 'none')
-    if (show) refresh()
+  async function refresh() {
+    let state = null
+    try {
+      state = await ipcRenderer.invoke('dsh:aux-status')
+    } catch {
+      state = null
+    }
+    apply(state)
+  }
+
+  async function start() {
+    setEnabled(startButton, false)
+    startButton.textContent = '启动中…'
+    let result = null
+    try {
+      result = await ipcRenderer.invoke('dsh:aux-start')
+    } catch (error) {
+      result = { ok: false, message: String(error && error.message ? error.message : error) }
+    }
+    startButton.textContent = '启动'
+    if (result && result.ok === false) {
+      showMessage(result.message || '启动失败')
+      apply(result)
+      // A failed start names a port that is not listening, so keep 启动 usable.
+      setEnabled(startButton, true)
+      return
+    }
+    showMessage('')
+    await refresh()
   }
 
   toggle.addEventListener('click', (event) => {
     event.stopPropagation()
-    showPanel(panel.style.display === 'none')
+    const show = panel.style.display === 'none'
+    panel.style.setProperty('display', show ? 'block' : 'none')
+    if (show) refresh()
   })
-  startButton.addEventListener('click', async (event) => {
+  startButton.addEventListener('click', (event) => {
     event.stopPropagation()
-    setEnabled(startButton, false)
-    startButton.textContent = '启动中…'
-    await ipcRenderer.invoke('dsh:aux-start')
-    startButton.textContent = '启动'
-    refresh()
+    start()
   })
   openButton.addEventListener('click', async (event) => {
     event.stopPropagation()
@@ -173,19 +214,13 @@ function mountAuxControl() {
   stopButton.addEventListener('click', async (event) => {
     event.stopPropagation()
     await ipcRenderer.invoke('dsh:aux-stop')
-    refresh()
+    showMessage('')
+    await refresh()
   })
   document.addEventListener('click', (event) => {
-    if (!root.contains(event.target)) showPanel(false)
+    if (!root.contains(event.target)) panel.style.setProperty('display', 'none')
   })
 
-  panel.appendChild(title)
-  panel.appendChild(statusLine)
-  panel.appendChild(homeLine)
-  row.appendChild(startButton)
-  row.appendChild(openButton)
-  row.appendChild(stopButton)
-  panel.appendChild(row)
   root.appendChild(panel)
   root.appendChild(toggle)
   document.body.appendChild(root)
