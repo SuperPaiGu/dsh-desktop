@@ -73,6 +73,8 @@ function defaultConfig() {
     startMode: 'auto', // auto | source | built
     startupTimeoutMs: 120000,
     killAttachedOnExit: false, // when attaching, also stop the external server on window close
+    devPort: 3081, // port of the second, independent instance started from the window
+    devHome: '', // '' shares dshHome; set a path to isolate the dev instance
     window: { width: 1440, height: 900 },
   }
 }
@@ -507,6 +509,109 @@ function gracefulStopServer(then) {
 let serverStopped = true
 let attachedKilled = false
 
+// ---------------------------------------------------------------- dev instance
+// A second, independent `dsh web` on its own port, started from the desktop
+// window. It is NOT tied to the desktop's own server: the desktop spawns it
+// detached, so closing or rebuilding the desktop never stops it. That is what
+// makes "update the desktop while the dev instance keeps running" possible.
+const DEV_PORT_DEFAULT = 3081
+
+function devPort() {
+  return Number(cfg && cfg.devPort) > 0 ? Number(cfg.devPort) : DEV_PORT_DEFAULT
+}
+
+/**
+ * The dev instance's DSH_HOME. Empty `devHome` shares the desktop's own home
+ * (same credentials, plugins, sessions). Point it at a path to isolate the dev
+ * instance — required when it runs a different dsh version, whose session
+ * format migration would otherwise rewrite this home's sessions.
+ */
+function devHomeDir() {
+  const configured = cfg && typeof cfg.devHome === 'string' ? cfg.devHome.trim() : ''
+  return configured || (cfg && cfg.dshHome) || defaultConfig().dshHome
+}
+
+function devState() {
+  const port = devPort()
+  const pid = findListenerPid(port)
+  return { port, running: pid !== null, pid, home: devHomeDir() }
+}
+
+/** Spawn `dsh web` on the dev port, detached so it outlives the desktop. */
+function startDev() {
+  const port = devPort()
+  if (findListenerPid(port) !== null) return { ok: true, already: true, ...devState() }
+  const launcher = resolveLauncher()
+  if (!launcher) return { ok: false, message: '未找到可用的 dsh CLI（先装 dsh，或设置 DSH_BIN）' }
+
+  let command
+  let args
+  let cwd = devHomeDir()
+  if (launcher.kind === 'checkout') {
+    command = resolveNodeBin()
+    args = launcher.launch.kind === 'source'
+      ? ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', '--port', String(port), '--no-open']
+      : ['apps/cli/lib/bin.js', 'web', '--port', String(port), '--no-open']
+    cwd = launcher.repo
+  } else {
+    args = ['web', '--port', String(port), '--no-open']
+    if (/\.cmd$/i.test(launcher.cmd)) {
+      command = 'cmd'
+      args = ['/c', launcher.cmd, ...args]
+    } else {
+      command = launcher.cmd
+    }
+  }
+  const env = { ...process.env, DSH_HOME: devHomeDir() }
+  delete env.ELECTRON_RUN_AS_NODE
+
+  const logFile = path.join(
+    app.getPath('userData'),
+    'logs',
+    `dsh-dev-${new Date().toISOString().replace(/[:.]/g, '-')}.log`,
+  )
+  let fd = -1
+  try {
+    fd = openSync(logFile, 'a')
+  } catch (error) {
+    logLine(`dev: cannot open log: ${error.message}`)
+  }
+  logLine(`dev: starting ${command} ${args.join(' ')}`)
+  logLine(`dev: home ${env.DSH_HOME} — log ${logFile}`)
+  try {
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      detached: true,
+      windowsHide: true,
+      stdio: ['ignore', fd > 0 ? fd : 'ignore', fd > 0 ? fd : 'ignore'],
+    })
+    child.on('error', (error) => logLine(`dev: spawn failed: ${error.message}`))
+    child.unref()
+    if (fd > 0) closeSync(fd)
+  } catch (error) {
+    if (fd > 0) closeSync(fd)
+    return { ok: false, message: `启动失败: ${error.message}` }
+  }
+  return { ok: true, ...devState() }
+}
+
+/** Stop whatever listens on the dev port (and its process tree). */
+function stopDev() {
+  const port = devPort()
+  const pid = findListenerPid(port)
+  if (pid === null) return { ok: true, already: true, ...devState() }
+  logLine(`dev: stopping listener ${pid} on ${port}`)
+  try { killProcessTree(pid) } catch {}
+  return { ok: true, ...devState() }
+}
+
+/** Open the dev instance in the default browser (the plain web UI). */
+function openDev() {
+  shell.openExternal(`http://127.0.0.1:${devPort()}/`)
+  return devState()
+}
+
 // ---------------------------------------------------------------- window
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -612,6 +717,11 @@ ipcMain.on('dsh:spawn', async () => {
 })
 
 ipcMain.on('dsh:quit', () => app.quit())
+
+ipcMain.handle('dsh:dev-status', () => devState())
+ipcMain.handle('dsh:dev-start', () => startDev())
+ipcMain.handle('dsh:dev-stop', () => stopDev())
+ipcMain.handle('dsh:dev-open', () => openDev())
 
 // ---------------------------------------------------------------- lifecycle
 app.setAppUserModelId(APP_ID)

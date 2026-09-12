@@ -1,6 +1,6 @@
 {
   "name": "dsh-desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "DSH desktop-window bundle: registers the /desktop command that opens DeepSeek Harness in a native desktop window (identical to the web UI)",
   "type": "module",
   "main": "index.js",

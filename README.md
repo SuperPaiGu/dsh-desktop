@@ -9,6 +9,12 @@
 
 ## 更新记录
 
+### v0.1.2
+
+- **桌面端内置「开发实例」按钮**：桌面窗口右下角多了一个悬浮按钮，可**一键启动 / 打开 / 停止**一个**独立端口（默认 `3081`）**的 dsh 实例。它和主服务（默认 `3080`）是**两个互不影响的服务**：
+  - 更新桌面端 / 插件时**不用停掉开发实例**；反过来主用桌面端时，也能在开发实例里**测新功能、试新版本 dsh**，而不必关掉正在用的 dsh。
+  - 配置项（`%APPDATA%\dsh-desktop\config.json`）：`devPort`（默认 `3081`）、`devHome`（默认空 = 共用主 home；填路径则隔离，**测新版本 dsh 时建议隔离**，避免新版的会话格式迁移影响主 home）。
+
 ### v0.1.1
 
 - **`install` 自动下载 exe**：git / npm 渠道不再需要手动下载大 tgz；无内置 exe 时，`dsh-desktop install` 会自动从 GitHub 最新 Release 下载 `DSH-Desktop-*.exe`（私有仓库请设环境变量 `GITHUB_PERSONAL_ACCESS_TOKEN`）。
@@ -46,12 +52,12 @@
 
 ### 三步装好
 
-**第 1 步**：到本仓库的 Release 页面，下载 `dsh-desktop-0.1.1.tgz` 文件。
+**第 1 步**：到本仓库的 Release 页面，下载 `dsh-desktop-0.1.2.tgz` 文件。
 
 **第 2 步**：打开终端（PowerShell），进入下载目录，执行：
 
 ```sh
-dsh plugin --profile web add ./dsh-desktop-0.1.1.tgz
+dsh plugin --profile web add ./dsh-desktop-0.1.2.tgz
 ```
 
 **第 3 步**：继续执行：
@@ -103,10 +109,10 @@ dsh --version    # 命令不存在则提示用户先安装 DSH
 
 ### 1. 取得 tarball 并安装（首选渠道）
 
-从 Release 下载 `dsh-desktop-0.1.1.tgz` 到工作目录，然后：
+从 Release 下载 `dsh-desktop-0.1.2.tgz` 到工作目录，然后：
 
 ```sh
-dsh plugin --profile web add ./dsh-desktop-0.1.1.tgz
+dsh plugin --profile web add ./dsh-desktop-0.1.2.tgz
 ```
 
 **验收**：退出码 0，输出含 `+ dsh-desktop`。

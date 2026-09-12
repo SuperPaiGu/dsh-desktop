@@ -1,5 +1,6 @@
-// Minimal preload: bridges the loading page to the main process.
-// sandbox:true keeps this restricted to contextBridge + ipcRenderer.
+// Minimal preload: bridges the loading page and the desktop window's pages to
+// the main process, and mounts the floating "dev instance" control.
+// sandbox:true keeps this restricted to contextBridge + ipcRenderer + DOM.
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('dshDesktop', {
@@ -17,4 +18,183 @@ contextBridge.exposeInMainWorld('dshDesktop', {
   retry: () => ipcRenderer.send('dsh:retry'),
   spawn: () => ipcRenderer.send('dsh:spawn'),
   quit: () => ipcRenderer.send('dsh:quit'),
+  devStatus: () => ipcRenderer.invoke('dsh:dev-status'),
+  devStart: () => ipcRenderer.invoke('dsh:dev-start'),
+  devStop: () => ipcRenderer.invoke('dsh:dev-stop'),
+  devOpen: () => ipcRenderer.invoke('dsh:dev-open'),
 })
+
+// -------------------------------------------------------------- dev control
+// A second, independent dsh instance lives on its own port. This floating
+// control starts/opens/stops it from inside the desktop window, so the main
+// service on this window's port keeps running untouched.
+const DEV_ROOT_ID = '__dsh_dev_control__'
+
+function stylize(el, props) {
+  for (const key of Object.keys(props)) el.style.setProperty(key, props[key])
+}
+
+function mountDevControl() {
+  if (!document.body) return
+  if (document.getElementById(DEV_ROOT_ID)) return
+
+  const root = document.createElement('div')
+  root.id = DEV_ROOT_ID
+  stylize(root, {
+    position: 'fixed',
+    right: '12px',
+    bottom: '12px',
+    'z-index': '2147483000',
+    'font-family': '"Microsoft YaHei", "Segoe UI", system-ui, sans-serif',
+    'font-size': '12px',
+    'line-height': '1.5',
+    'user-select': 'none',
+  })
+
+  const panel = document.createElement('div')
+  stylize(panel, {
+    position: 'absolute',
+    right: '0',
+    bottom: '38px',
+    'min-width': '230px',
+    background: 'rgba(17, 21, 28, 0.97)',
+    border: '1px solid rgba(120, 130, 150, 0.35)',
+    'border-radius': '10px',
+    padding: '10px 12px',
+    color: '#d7dbe4',
+    'box-shadow': '0 10px 30px rgba(0, 0, 0, 0.45)',
+    display: 'none',
+  })
+
+  const title = document.createElement('div')
+  stylize(title, { margin: '0 0 6px', 'font-weight': '600' })
+  title.textContent = '开发实例'
+
+  const statusLine = document.createElement('div')
+  stylize(statusLine, { margin: '0 0 4px' })
+
+  const homeLine = document.createElement('div')
+  stylize(homeLine, {
+    color: '#8b93a7',
+    'font-size': '11px',
+    'word-break': 'break-all',
+    margin: '0 0 10px',
+  })
+
+  const row = document.createElement('div')
+  stylize(row, { display: 'flex', gap: '6px' })
+
+  function makeButton(label) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.textContent = label
+    stylize(button, {
+      border: '1px solid rgba(120, 130, 150, 0.4)',
+      background: '#1b2130',
+      color: '#d7dbe4',
+      'border-radius': '7px',
+      padding: '5px 10px',
+      cursor: 'pointer',
+      flex: '1 1 auto',
+      font: 'inherit',
+    })
+    return button
+  }
+
+  const startButton = makeButton('启动')
+  const openButton = makeButton('打开')
+  const stopButton = makeButton('停止')
+
+  const toggle = document.createElement('button')
+  toggle.type = 'button'
+  toggle.textContent = '开发实例'
+  toggle.title = '启动/管理独立端口的 dsh 实例（不影响当前端口的服务）'
+  stylize(toggle, {
+    border: '1px solid rgba(120, 130, 150, 0.45)',
+    background: 'rgba(23, 28, 38, 0.92)',
+    color: '#d7dbe4',
+    'border-radius': '999px',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    font: 'inherit',
+    'box-shadow': '0 4px 14px rgba(0, 0, 0, 0.35)',
+  })
+
+  function setEnabled(button, enabled) {
+    button.disabled = !enabled
+    button.style.setProperty('opacity', enabled ? '1' : '0.4')
+    button.style.setProperty('cursor', enabled ? 'pointer' : 'default')
+  }
+
+  async function refresh() {
+    let state = null
+    try {
+      state = await ipcRenderer.invoke('dsh:dev-status')
+    } catch {
+      state = null
+    }
+    if (!state) {
+      statusLine.textContent = '状态未知'
+      setEnabled(startButton, false)
+      setEnabled(openButton, false)
+      setEnabled(stopButton, false)
+      return
+    }
+    statusLine.textContent = state.running
+      ? `状态：运行中（pid ${state.pid}）`
+      : '状态：未运行'
+    homeLine.textContent = `端口 ${state.port} · home ${state.home}`
+    setEnabled(startButton, !state.running)
+    setEnabled(openButton, state.running)
+    setEnabled(stopButton, state.running)
+  }
+
+  function showPanel(show) {
+    panel.style.setProperty('display', show ? 'block' : 'none')
+    if (show) refresh()
+  }
+
+  toggle.addEventListener('click', (event) => {
+    event.stopPropagation()
+    showPanel(panel.style.display === 'none')
+  })
+  startButton.addEventListener('click', async (event) => {
+    event.stopPropagation()
+    setEnabled(startButton, false)
+    startButton.textContent = '启动中…'
+    await ipcRenderer.invoke('dsh:dev-start')
+    startButton.textContent = '启动'
+    refresh()
+  })
+  openButton.addEventListener('click', async (event) => {
+    event.stopPropagation()
+    await ipcRenderer.invoke('dsh:dev-open')
+  })
+  stopButton.addEventListener('click', async (event) => {
+    event.stopPropagation()
+    await ipcRenderer.invoke('dsh:dev-stop')
+    refresh()
+  })
+  document.addEventListener('click', (event) => {
+    if (!root.contains(event.target)) showPanel(false)
+  })
+
+  panel.appendChild(title)
+  panel.appendChild(statusLine)
+  panel.appendChild(homeLine)
+  row.appendChild(startButton)
+  row.appendChild(openButton)
+  row.appendChild(stopButton)
+  panel.appendChild(row)
+  root.appendChild(panel)
+  root.appendChild(toggle)
+  document.body.appendChild(root)
+  refresh()
+  setInterval(refresh, 5000)
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', mountDevControl)
+} else {
+  mountDevControl()
+}
