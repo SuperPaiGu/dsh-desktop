@@ -1,5 +1,5 @@
 // Minimal preload: bridges the loading page and the desktop window's pages to
-// the main process, and mounts the floating "dev instance" control.
+// the main process, and mounts the floating "auxiliary instance" control.
 // sandbox:true keeps this restricted to contextBridge + ipcRenderer + DOM.
 const { contextBridge, ipcRenderer } = require('electron')
 
@@ -18,28 +18,28 @@ contextBridge.exposeInMainWorld('dshDesktop', {
   retry: () => ipcRenderer.send('dsh:retry'),
   spawn: () => ipcRenderer.send('dsh:spawn'),
   quit: () => ipcRenderer.send('dsh:quit'),
-  devStatus: () => ipcRenderer.invoke('dsh:dev-status'),
-  devStart: () => ipcRenderer.invoke('dsh:dev-start'),
-  devStop: () => ipcRenderer.invoke('dsh:dev-stop'),
-  devOpen: () => ipcRenderer.invoke('dsh:dev-open'),
+  auxStatus: () => ipcRenderer.invoke('dsh:aux-status'),
+  auxStart: () => ipcRenderer.invoke('dsh:aux-start'),
+  auxStop: () => ipcRenderer.invoke('dsh:aux-stop'),
+  auxOpen: () => ipcRenderer.invoke('dsh:aux-open'),
 })
 
-// -------------------------------------------------------------- dev control
+// -------------------------------------------------------------- aux control
 // A second, independent dsh instance lives on its own port. This floating
 // control starts/opens/stops it from inside the desktop window, so the main
 // service on this window's port keeps running untouched.
-const DEV_ROOT_ID = '__dsh_dev_control__'
+const AUX_ROOT_ID = '__dsh_aux_control__'
 
 function stylize(el, props) {
   for (const key of Object.keys(props)) el.style.setProperty(key, props[key])
 }
 
-function mountDevControl() {
+function mountAuxControl() {
   if (!document.body) return
-  if (document.getElementById(DEV_ROOT_ID)) return
+  if (document.getElementById(AUX_ROOT_ID)) return
 
   const root = document.createElement('div')
-  root.id = DEV_ROOT_ID
+  root.id = AUX_ROOT_ID
   stylize(root, {
     position: 'fixed',
     right: '12px',
@@ -68,7 +68,7 @@ function mountDevControl() {
 
   const title = document.createElement('div')
   stylize(title, { margin: '0 0 6px', 'font-weight': '600' })
-  title.textContent = '开发实例'
+  title.textContent = '辅助端'
 
   const statusLine = document.createElement('div')
   stylize(statusLine, { margin: '0 0 4px' })
@@ -107,7 +107,7 @@ function mountDevControl() {
 
   const toggle = document.createElement('button')
   toggle.type = 'button'
-  toggle.textContent = '开发实例'
+  toggle.textContent = '辅助端'
   toggle.title = '启动/管理独立端口的 dsh 实例（不影响当前端口的服务）'
   stylize(toggle, {
     border: '1px solid rgba(120, 130, 150, 0.45)',
@@ -129,7 +129,7 @@ function mountDevControl() {
   async function refresh() {
     let state = null
     try {
-      state = await ipcRenderer.invoke('dsh:dev-status')
+      state = await ipcRenderer.invoke('dsh:aux-status')
     } catch {
       state = null
     }
@@ -162,17 +162,17 @@ function mountDevControl() {
     event.stopPropagation()
     setEnabled(startButton, false)
     startButton.textContent = '启动中…'
-    await ipcRenderer.invoke('dsh:dev-start')
+    await ipcRenderer.invoke('dsh:aux-start')
     startButton.textContent = '启动'
     refresh()
   })
   openButton.addEventListener('click', async (event) => {
     event.stopPropagation()
-    await ipcRenderer.invoke('dsh:dev-open')
+    await ipcRenderer.invoke('dsh:aux-open')
   })
   stopButton.addEventListener('click', async (event) => {
     event.stopPropagation()
-    await ipcRenderer.invoke('dsh:dev-stop')
+    await ipcRenderer.invoke('dsh:aux-stop')
     refresh()
   })
   document.addEventListener('click', (event) => {
@@ -194,7 +194,7 @@ function mountDevControl() {
 }
 
 if (document.readyState === 'loading') {
-  window.addEventListener('DOMContentLoaded', mountDevControl)
+  window.addEventListener('DOMContentLoaded', mountAuxControl)
 } else {
-  mountDevControl()
+  mountAuxControl()
 }
